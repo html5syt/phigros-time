@@ -709,4 +709,25 @@
           statusBadgeEl.className = "status-badge status-countdown";
         } else if (timeSinceCountdownEnd <= 4 * 3600) {
           statusBadgeEl.textContent = "可能延迟开播";
- 
+          statusBadgeEl.className = "status-badge status-delay";
+        } else if (timeSinceCountdownEnd <= 15 * 24 * 3600) {
+          statusBadgeEl.textContent = "未开播";
+          statusBadgeEl.className = "status-badge status-offline";
+        } else {
+          statusBadgeEl.textContent = "近期无直播";
+          statusBadgeEl.className = "status-badge status-offline";
+        }
+      }
+    }
+
+    // 更新弹幕和在线人数（高频更新）
+    async function updateDanmuAndOnline() {
+      try {
+        await Promise.all([loadLiveInfo(), loadDanmu()]);
+      } catch (error) {
+        console.error("更新弹幕和在线人数失败:", error);
+      }
+    }
+  </script>
+</body>
+</html>
