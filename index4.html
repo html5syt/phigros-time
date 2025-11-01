@@ -1,0 +1,369 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Phigros 6周年庆直播倒计时</title>  
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Saira', 'Microsoft YaHei', '黑体', sans-serif;
+  }
+  
+  body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  
+  .container {
+    text-align: center;
+    max-width: 800px;
+    width: 100%;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  }
+  
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    background: linear-gradient(90deg, #ff8a00, #e52e71);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .subtitle {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+    opacity: 0.8;
+  }
+  
+  #time {
+    font-size: 5rem;
+    font-weight: bold;
+    margin: 20px 0;
+    text-shadow: 0 0 10px rgba(255, 138, 0, 0.5);
+    color: #fff;
+  }
+  
+  .live-info {
+    margin: 30px 0;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+  }
+  
+  .live-link {
+    display: inline-block;
+    font-size: 1.3rem;
+    color: #00a1d6;
+    text-decoration: none;
+    margin: 15px 0;
+    padding: 10px 20px;
+    border: 2px solid #00a1d6;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+  }
+  
+  .live-link:hover {
+    background: #00a1d6;
+    color: white;
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 161, 214, 0.4);
+  }
+  
+  #online-count {
+    font-size: 1.5rem;
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+  }
+  
+  .live-status {
+    font-size: 1.5rem;
+    margin: 15px 0;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+  
+  .status-live {
+    color: #ff4757;
+    background: rgba(255, 71, 87, 0.1);
+  }
+  
+  .status-delay {
+    color: #ffa502;
+    background: rgba(255, 165, 2, 0.1);
+  }
+  
+  .status-offline {
+    color: #747d8c;
+    background: rgba(116, 125, 140, 0.1);
+  }
+  
+  .loading {
+    opacity: 0.7;
+  }
+  
+  /* 响应式设计 */
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 2rem;
+    }
+    
+    #time {
+      font-size: 3rem;
+    }
+    
+    .live-link {
+      font-size: 1.1rem;
+    }
+    
+    #online-count, .live-status {
+      font-size: 1.2rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    h1 {
+      font-size: 1.7rem;
+    }
+    
+    #time {
+      font-size: 2.5rem;
+    }
+    
+    .container {
+      padding: 20px 15px;
+    }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;700&display=swap" rel="stylesheet">
+</head>  
+<body>  
+  <div class="container">
+    <h1 id="live-title">Phigros 6周年庆夏日直播</h1>
+    
+    <div id="countdown">
+      距离直播开始还有：<br>
+      <span id="time">Loading...</span>
+    </div>
+    
+    <div class="live-info">
+      <a class="live-link" href="https://live.bilibili.com/24326931" target="_blank">
+        🎮 直达直播间 →
+      </a>
+      <div id="online-count">当前直播间总观看人次：加载中...</div>
+      <div id="live-status" class="live-status">直播状态：获取中...</div>
+    </div>
+  </div>
+  
+  <script>
+    // 全局变量
+    let countdownEnded = false;
+    let countdownTimer = null;
+    
+    // 目标用户mid
+    const targetMid = 414149787;
+    
+    // 倒计时功能
+    function getTimeRemaining(endtime) {  
+      const total = Date.parse(endtime) - Date.now();  
+      
+      // 如果倒计时已经结束，返回0值
+      if (total <= 0) {
+        return {
+          'total': 0,  
+          'days': 0,  
+          'hours': 0,  
+          'minutes': 0,  
+          'seconds': 0  
+        };
+      }
+      
+      const seconds = Math.floor((total / 1000) % 60);  
+      const minutes = Math.floor((total / (1000 * 60)) % 60);  
+      const hours = Math.floor((total / (1000 * 60 * 60)) % 24);  
+      const days = Math.floor(total / (1000 * 60 * 60 * 24));  
+      
+      return {  
+        'total': total,  
+        'days': days,  
+        'hours': hours,  
+        'minutes': minutes,  
+        'seconds': seconds  
+      };  
+    }  
+    
+    function initializeCountdown(endtime) {  
+      const countdownElement = document.getElementById('time');  
+      countdownTimer = setInterval(function() {  
+        const t = getTimeRemaining(endtime);  
+        
+        if (t.total <= 0) {  
+          clearInterval(countdownTimer);
+          countdownEnded = true;
+          countdownElement.textContent = "倒计时结束";
+          countdownElement.style.color = "#ff8a00";
+          // 倒计时结束后立即检查一次直播状态
+          fetchLiveInfo();
+        } else {
+          // 时间格式：天 时:分:秒  
+          countdownElement.textContent = t.days + "天 " +  
+            ("0" + t.hours).slice(-2) + ":" +  
+            ("0" + t.minutes).slice(-2) + ":" +  
+            ("0" + t.seconds).slice(-2);  
+        }
+      }, 1000);  
+    }  
+    
+    // 获取直播间信息
+    async function fetchLiveInfo() {
+      const onlineCountElement = document.getElementById('online-count');
+      const liveTitleElement = document.getElementById('live-title');
+      const liveStatusElement = document.getElementById('live-status');
+      const liveLinkElement = document.querySelector('.live-link');
+      
+      try {
+        // 使用新接口获取直播间标题和在线人数
+        const newApiResponse = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.live.bilibili.com/room/v1/Room/getRoomInfoOld?mid=${targetMid}`)}`);
+        const newApiData = await newApiResponse.json();
+        
+        // 使用原接口获取直播间状态
+        const roomId = extractRoomId("https://live.bilibili.com/24326931");
+        const oldApiResponse = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${roomId}`)}`);
+        const oldApiData = await oldApiResponse.json();
+        
+        // 处理新接口数据
+        if (newApiData.code === 0 && newApiData.data) {
+          const onlineCount = newApiData.data.online;
+          const liveTitle = newApiData.data.title;
+          const roomUrl = newApiData.data.url;
+          
+          // 更新在线人数
+          onlineCountElement.textContent = `当前直播间总观看人次（热度）：${onlineCount.toLocaleString()}`;
+          onlineCountElement.classList.remove('loading');
+          
+          // 更新直播标题和网页标题
+          if (liveTitle) {
+            liveTitleElement.textContent = liveTitle;
+            document.title = liveTitle + " - 直播倒计时";
+          }
+          
+          // 更新直播间链接
+          if (roomUrl) {
+            liveLinkElement.href = roomUrl;
+          }
+        } else {
+          onlineCountElement.textContent = "当前直播间总观看人次（热度）：数据获取失败";
+        }
+        
+        // 处理原接口数据
+        if (oldApiData.code === 0 && oldApiData.data) {
+          const liveStatus = oldApiData.data.live_status;
+          
+          // 更新直播状态
+          updateLiveStatus(liveStatus, liveStatusElement);
+        } else {
+          liveStatusElement.textContent = "直播状态：数据获取失败";
+        }
+        
+      } catch (error) {
+        console.error('获取直播间信息失败:', error);
+        onlineCountElement.textContent = "当前直播间总观看人次：加载失败";
+        liveStatusElement.textContent = "直播状态：加载失败";
+      }
+    }
+    
+    // 更新直播状态显示
+    function updateLiveStatus(liveStatus, element) {
+      // 移除之前的样式类
+      element.classList.remove('status-live', 'status-delay', 'status-offline');
+      
+      if (countdownEnded) {
+        // 倒计时结束后，根据直播状态显示不同提示
+        switch(liveStatus) {
+          case 0: // 未开播
+            element.textContent = "直播状态：直播可能延迟开始";
+            element.classList.add('status-delay');
+            break;
+          case 1: // 直播中
+            element.textContent = "直播状态：直播正在进行中";
+            element.classList.add('status-live');
+            break;
+          case 2: // 轮播中
+            element.textContent = "直播状态：轮播中";
+            element.classList.add('status-offline');
+            break;
+          default:
+            element.textContent = "直播状态：未知状态";
+            element.classList.add('status-offline');
+        }
+      } else {
+        // 倒计时未结束，显示常规状态
+        switch(liveStatus) {
+          case 0: // 未开播
+            element.textContent = "直播状态：未开始";
+            element.classList.add('status-offline');
+            break;
+          case 1: // 直播中
+            element.textContent = "直播状态：直播中";
+            element.classList.add('status-live');
+            break;
+          case 2: // 轮播中
+            element.textContent = "直播状态：轮播中";
+            element.classList.add('status-offline');
+            break;
+          default:
+            element.textContent = "直播状态：未知";
+            element.classList.add('status-offline');
+        }
+      }
+    }
+    
+    // 从B站直播间URL提取房间ID
+    function extractRoomId(url) {
+      try {
+        // 处理多种URL格式
+        const urlObj = new URL(url);
+        const pathSegments = urlObj.pathname.split('/').filter(segment => segment);
+        
+        // 房间号通常是路径的最后一部分
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        const roomId = parseInt(lastSegment);
+        
+        return isNaN(roomId) ? null : roomId;
+      } catch (error) {
+        console.error('解析URL失败:', error);
+        return null;
+      }
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 设置目标时间
+      const endTime = "2025-10-26 13:00:00";
+      initializeCountdown(endTime);
+      
+      // 获取直播间信息（在线人数、标题和状态）
+      fetchLiveInfo();
+      
+      // 每30秒更新一次直播间信息
+      setInterval(fetchLiveInfo, 30000);
+    });
+  </script>  
+</body>  
+</html>
