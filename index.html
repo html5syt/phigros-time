@@ -440,9 +440,9 @@
 
           // 更新直播间封面 - 修正为user_cover
           if (roomInfo.user_cover) {
-            coverImgEl.src = roomInfo.user_cover;
+            coverImgEl.src = proxyUrl + roomInfo.user_cover;
           } else if (roomInfo.cover) {
-            coverImgEl.src = roomInfo.cover;
+            coverImgEl.src = proxyUrl + roomInfo.cover;
           }
 
           // 更新直播间链接
