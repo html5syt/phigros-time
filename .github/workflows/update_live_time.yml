@@ -9,18 +9,18 @@ on:
 jobs:
   update-time:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -30,10 +30,18 @@ jobs:
       run: |
         python get_live_time.py
     
+    - name: Log workflow execution
+      run: |
+        echo "Workflow executed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> log.txt
+        echo "Workflow: $GITHUB_WORKFLOW" >> log.txt
+        echo "Run ID: $GITHUB_RUN_ID" >> log.txt
+        echo "Triggered by: $GITHUB_EVENT_NAME" >> log.txt
+        echo "---" >> log.txt
+    
     - name: Commit and push if changed
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add auto-get-time.txt
+        git add auto-get-time.txt log.txt
         git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update live time from Bilibili API"
         git push
