@@ -163,6 +163,145 @@ def get_buvid3() -> str:
         return "XY5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A5A"
 
 
+def parse_reservation_time(time_text: str, uncheck_text: str = "") -> float | None:
+    """解析预约时间文本，返回时间戳"""
+    now = time.localtime()
+    year = now.tm_year
+
+    # 尝试匹配"今天 时:分"格式（可能带有"直播"等后缀）
+    today_match = re.search(r"今天\s*(\d{1,2}):(\d{1,2})", time_text)
+    if today_match:
+        hour = int(today_match.group(1))
+        minute = int(today_match.group(2))
+
+        # 获取今天日期
+        month = now.tm_mon
+        day = now.tm_mday
+
+        # 创建时间对象
+        reservation_time = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
+
+        # 根据按钮状态决定是否设置为明天
+        if uncheck_text != "已结束" and reservation_time < time.time():
+            tomorrow = time.localtime(time.time() + 86400)
+            reservation_time = time.mktime(
+                (
+                    tomorrow.tm_year,
+                    tomorrow.tm_mon,
+                    tomorrow.tm_mday,
+                    hour,
+                    minute,
+                    0,
+                    0,
+                    0,
+                    -1,
+                )
+            )
+        return reservation_time
+
+    # 尝试匹配"明天 时:分"格式（可能带有"直播"等后缀）
+    tomorrow_match = re.search(r"明天\s*(\d{1,2}):(\d{1,2})", time_text)
+    if tomorrow_match:
+        hour = int(tomorrow_match.group(1))
+        minute = int(tomorrow_match.group(2))
+
+        # 获取明天日期
+        tomorrow = time.localtime(time.time() + 86400)
+
+        # 创建时间对象
+        reservation_time = time.mktime(
+            (
+                tomorrow.tm_year,
+                tomorrow.tm_mon,
+                tomorrow.tm_mday,
+                hour,
+                minute,
+                0,
+                0,
+                0,
+                -1,
+            )
+        )
+        return reservation_time
+
+    # 尝试匹配"后天 时:分"格式
+    day_after_tomorrow_match = re.search(r"后天\s*(\d{1,2}):(\d{1,2})", time_text)
+    if day_after_tomorrow_match:
+        hour = int(day_after_tomorrow_match.group(1))
+        minute = int(day_after_tomorrow_match.group(2))
+
+        # 获取后天日期
+        day_after = time.localtime(time.time() + 86400 * 2)
+
+        # 创建时间对象
+        reservation_time = time.mktime(
+            (
+                day_after.tm_year,
+                day_after.tm_mon,
+                day_after.tm_mday,
+                hour,
+                minute,
+                0,
+                0,
+                0,
+                -1,
+            )
+        )
+        return reservation_time
+
+    # 尝试匹配"月-日 时:分"格式
+    date_match = re.search(r"(\d{1,2})-(\d{1,2})\s*(\d{1,2}):(\d{1,2})", time_text)
+    if date_match:
+        month = int(date_match.group(1))
+        day = int(date_match.group(2))
+        hour = int(date_match.group(3))
+        minute = int(date_match.group(4))
+
+        # 创建时间对象
+        reservation_time = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
+
+        # 根据按钮状态决定是否设置为明年
+        if uncheck_text != "已结束" and reservation_time < time.time():
+            reservation_time = time.mktime(
+                (year + 1, month, day, hour, minute, 0, 0, 0, -1)
+            )
+        return reservation_time
+
+    # 尝试匹配"年-月-日 时:分"格式
+    full_date_match = re.search(
+        r"(\d{4})-(\d{1,2})-(\d{1,2})\s*(\d{1,2}):(\d{1,2})", time_text
+    )
+    if full_date_match:
+        year = int(full_date_match.group(1))
+        month = int(full_date_match.group(2))
+        day = int(full_date_match.group(3))
+        hour = int(full_date_match.group(4))
+        minute = int(full_date_match.group(5))
+
+        reservation_time = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
+        return reservation_time
+
+    # 尝试匹配"月/日 时:分"格式
+    slash_date_match = re.search(
+        r"(\d{1,2})/(\d{1,2})\s*(\d{1,2}):(\d{1,2})", time_text
+    )
+    if slash_date_match:
+        month = int(slash_date_match.group(1))
+        day = int(slash_date_match.group(2))
+        hour = int(slash_date_match.group(3))
+        minute = int(slash_date_match.group(4))
+
+        reservation_time = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
+
+        if uncheck_text != "已结束" and reservation_time < time.time():
+            reservation_time = time.mktime(
+                (year + 1, month, day, hour, minute, 0, 0, 0, -1)
+            )
+        return reservation_time
+
+    return None
+
+
 def get_live_reservation(mid: str, buvid3: str):
     """获取UP主的直播预约信息"""
     try:
@@ -235,88 +374,20 @@ def get_live_reservation(mid: str, buvid3: str):
                                 else ""
                             )
 
-                            time_match = re.search(
-                                r"(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{1,2})", time_text
+                            # 使用新的解析函数
+                            reservation_time = parse_reservation_time(
+                                time_text, uncheck_text
                             )
-                            if time_match:
-                                month = int(time_match.group(1))
-                                day = int(time_match.group(2))
-                                hour = int(time_match.group(3))
-                                minute = int(time_match.group(4))
 
-                                # 构建日期
-                                now = time.localtime()
-                                year = now.tm_year
-
-                                # 创建时间对象
-                                reservation_time = time.mktime(
-                                    (year, month, day, hour, minute, 0, 0, 0, -1)
-                                )
-
-                                # 根据按钮状态决定是否设置为明年
-                                # 如果按钮的uncheck.text为"已结束"，则使用今年时间
-                                # 否则，如果时间已经过去，设置为明年
-                                if (
-                                    uncheck_text != "已结束"
-                                    and reservation_time < time.time()
-                                ):
-                                    reservation_time = time.mktime(
-                                        (
-                                            year + 1,
-                                            month,
-                                            day,
-                                            hour,
-                                            minute,
-                                            0,
-                                            0,
-                                            0,
-                                            -1,
-                                        )
-                                    )
+                            if reservation_time is not None:
+                                return {
+                                    "timestamp": int(reservation_time),
+                                    "title": title,
+                                    "time_text": time_text,
+                                }
                             else:
-                                # 尝试匹配"今天 时:分"格式
-                                today_match = re.search(r"今天\s+(\d{1,2}):(\d{1,2})", time_text)
-                                if today_match:
-                                    hour = int(today_match.group(1))
-                                    minute = int(today_match.group(2))
-                                    
-                                    # 获取今天日期
-                                    now = time.localtime()
-                                    year = now.tm_year
-                                    month = now.tm_mon
-                                    day = now.tm_mday
-                                    
-                                    # 创建时间对象
-                                    reservation_time = time.mktime(
-                                        (year, month, day, hour, minute, 0, 0, 0, -1)
-                                    )
-                                    
-                                    # 根据按钮状态决定是否设置为明天
-                                    # 如果按钮的uncheck.text为"已结束"，则使用今天时间
-                                    # 否则，如果时间已经过去，设置为明天
-                                    if (
-                                        uncheck_text != "已结束"
-                                        and reservation_time < time.time()
-                                    ):
-                                        # 设置为明天同一时间
-                                        tomorrow = time.localtime(time.time() + 86400)  # 86400秒 = 1天
-                                        reservation_time = time.mktime(
-                                            (
-                                                tomorrow.tm_year,
-                                                tomorrow.tm_mon,
-                                                tomorrow.tm_mday,
-                                                hour,
-                                                minute,
-                                                0,
-                                                0,
-                                                0,
-                                                -1,
-                                            )
-                                        )
-                                else:
-                                    # 如果两种格式都不匹配，返回None
-                                    print(f"无法解析时间格式: {time_text}")
-                                    continue
+                                print(f"无法解析时间格式: {time_text}")
+                                continue
 
             # 如果当前页没有找到预约但有更多页面，继续翻页
             if offset and data.get("data", {}).get("has_more", False):
