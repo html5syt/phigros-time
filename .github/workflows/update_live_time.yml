@@ -3,7 +3,7 @@ name: Update Live Time
 on:
   schedule:
     # 每6小时运行一次
-    - cron: '15 6,9 * * *'
+    - cron: '15 * * * *'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
