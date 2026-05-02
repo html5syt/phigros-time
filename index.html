@@ -237,6 +237,9 @@
           <div id="manual-notice" class="manual-notice" style="display: none;">
             提示：当前使用手动设置的倒计时时间
           </div>
+          <div id="equal-notice" class="manual-notice" style="display: none; background-color: #e6f7ff; border-color: #91d5ff;">
+            提示：自动与手动时间一致
+          </div>
         </div>
       </div>
 
@@ -262,7 +265,7 @@
       roomId: "24326931"
     };
 
-    // 使用代理解决CORS问题 [citation:10]
+    // 使用代理解决CORS问题
     const proxyUrl = "https://api.codetabs.com/v1/proxy/?quest=";
 
     // 状态变量
@@ -280,110 +283,122 @@
     const countdownEl = document.getElementById("countdown");
     const autoTimeNoticeEl = document.getElementById("auto-time-notice");
     const manualNoticeEl = document.getElementById("manual-notice");
+    const equalNoticeEl = document.getElementById("equal-notice");
     const danmuListEl = document.getElementById("danmu-list");
     const danmuLoadingEl = document.getElementById("danmu-loading");
 
     // 初始化
     document.addEventListener("DOMContentLoaded", function () {
-      // 立即加载一次所有数据
       initializeData();
     });
 
     // 初始化数据
     async function initializeData() {
       try {
-        // 加载倒计时数据
         await loadCountdownData();
-        
-        // 然后加载所有数据
         loadAllData();
-        
-        // 设置定时器：根据直播状态动态调整更新频率
         setInterval(updateDanmuAndOnline, refreshInterval);
-        
-        // 设置定时器：每15分钟更新直播状态和倒计时
         setInterval(loadAllData, 15 * 60 * 1000);
-        
-        // 每秒更新倒计时显示
         setInterval(updateCountdown, 1000);
       } catch (error) {
         console.error("初始化数据出错:", error);
       }
     }
 
-    // 加载倒计时数据
+    // 安全的解析整数
+    function safeParseInt(str, fallback = 0) {
+      const num = parseInt(str, 10);
+      return isNaN(num) ? fallback : num;
+    }
+
+    // 加载倒计时数据并比较，取更晚的时间
     async function loadCountdownData() {
       try {
-        // 同时获取自动和手动时间文件
-        const [autoTimeResponse, manualTimeResponse] = await Promise.all([
+        const [autoText, manualText] = await Promise.all([
           fetch('./auto-get-time.txt').then(r => r.ok ? r.text() : null).catch(() => null),
           fetch('./manual-time.txt').then(r => r.ok ? r.text() : null).catch(() => null)
         ]);
-        
-        let autoTimeData = null;
-        let manualTimeData = null;
-        
-        // 解析自动时间文件
-        if (autoTimeResponse) {
-          const lines = autoTimeResponse.trim().split('\n');
+
+        let autoData = null;
+        let manualData = null;
+
+        // 解析自动文件
+        if (autoText) {
+          const lines = autoText.trim().split('\n');
           if (lines.length >= 2) {
-            autoTimeData = {
-              time: parseInt(lines[0]),
-              title: lines[1]
-            };
+            const ts = safeParseInt(lines[0], 0);
+            if (ts > 0) {
+              autoData = { time: ts, title: lines[1] };
+            }
           }
         }
-        
-        // 解析手动时间文件
-        if (manualTimeResponse) {
-          const lines = manualTimeResponse.trim().split('\n');
+
+        // 解析手动文件
+        if (manualText) {
+          const lines = manualText.trim().split('\n');
           if (lines.length >= 2) {
-            manualTimeData = {
-              time: parseInt(lines[0]),
-              title: lines[1]
-            };
+            const ts = safeParseInt(lines[0], 0);
+            if (ts > 0) {
+              manualData = { time: ts, title: lines[1] };
+            }
           }
         }
-        
-        // 选择最新的时间
-        if (autoTimeData && manualTimeData) {
-          // 两个文件都存在，选择时间戳较大的
-          if (autoTimeData.time > manualTimeData.time) {
-            reservationData = autoTimeData;
+
+        // 比较并选择
+        if (autoData && manualData) {
+          if (autoData.time > manualData.time) {
+            reservationData = autoData;
             autoTimeNoticeEl.style.display = "block";
             manualNoticeEl.style.display = "none";
-          } else {
-            reservationData = manualTimeData;
+            equalNoticeEl.style.display = "none";
+          } else if (manualData.time > autoData.time) {
+            reservationData = manualData;
             autoTimeNoticeEl.style.display = "none";
             manualNoticeEl.style.display = "block";
+            equalNoticeEl.style.display = "none";
+          } else {
+            // 时间相等，任选一个，这里选择手动数据作为显示，并提示一致
+            reservationData = manualData;
+            autoTimeNoticeEl.style.display = "none";
+            manualNoticeEl.style.display = "none";
+            equalNoticeEl.style.display = "block";
           }
-        } else if (autoTimeData) {
-          // 只有自动时间文件
-          reservationData = autoTimeData;
+        } else if (autoData) {
+          reservationData = autoData;
           autoTimeNoticeEl.style.display = "block";
           manualNoticeEl.style.display = "none";
-        } else if (manualTimeData) {
-          // 只有手动时间文件
-          reservationData = manualTimeData;
+          equalNoticeEl.style.display = "none";
+        } else if (manualData) {
+          reservationData = manualData;
           autoTimeNoticeEl.style.display = "none";
           manualNoticeEl.style.display = "block";
+          equalNoticeEl.style.display = "none";
         } else {
-          // 两个文件都不存在
-          console.error("无法加载倒计时数据");
+          // 都没有有效数据，使用默认值
+          console.warn("无有效倒计时数据，使用默认24小时后");
           reservationData = {
-            time: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 默认24小时后
+            time: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
             title: "未找到直播预约信息"
           };
           autoTimeNoticeEl.style.display = "none";
           manualNoticeEl.style.display = "block";
+          equalNoticeEl.style.display = "none";
         }
-        
-        // 设置初始标题
+
         currentTitle = reservationData.title;
         updateTitle();
-        
+
       } catch (error) {
         console.error("加载倒计时数据出错:", error);
+        // 出错时也设置一个默认值
+        if (!reservationData) {
+          reservationData = {
+            time: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+            title: "数据加载失败"
+          };
+          currentTitle = reservationData.title;
+          updateTitle();
+        }
       }
     }
 
@@ -409,14 +424,12 @@
     // 获取UP主信息
     async function loadUpperInfo() {
       try {
-        // 使用代理获取UP主信息 [citation:10]
         const apiUrl = `https://api.bilibili.com/x/space/acc/info?mid=${config.mid}`;
         const response = await fetch(`${proxyUrl}${encodeURIComponent(apiUrl)}`);
         const data = await response.json();
 
         if (data.code === 0) {
           const info = data.data;
-          // 只在没有倒计时数据时更新标题
           if (!reservationData) {
             currentTitle = `${info.name}的直播监控`;
             updateTitle();
@@ -430,7 +443,6 @@
     // 获取直播间信息
     async function loadLiveInfo() {
       try {
-        // 使用代理获取直播间信息 [citation:10]
         const apiUrl = `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${config.roomId}`;
         const response = await fetch(`${proxyUrl}${encodeURIComponent(apiUrl)}`);
         const data = await response.json();
@@ -438,32 +450,25 @@
         if (data.code === 0) {
           const roomInfo = data.data;
 
-          // 更新直播间封面 - 修正为user_cover
           if (roomInfo.user_cover) {
             coverImgEl.src = proxyUrl + roomInfo.user_cover;
           } else if (roomInfo.cover) {
             coverImgEl.src = proxyUrl + roomInfo.cover;
           }
 
-          // 更新直播间链接
           liveLinkEl.href = `https://live.bilibili.com/${config.roomId}`;
 
-          // 更新直播状态
           liveStatus = roomInfo.live_status;
           
-          // 关键修改：如果正在直播，使用实际的直播间标题
           if (liveStatus === 1 && roomInfo.title) {
             currentTitle = roomInfo.title;
             updateTitle();
           }
           
           updateStatusDisplay();
-
-          // 根据直播状态调整刷新频率
           adjustRefreshRate();
         }
 
-        // 获取在线人数 - 使用新的API
         await loadOnlineNum();
       } catch (error) {
         console.error("获取直播间信息失败:", error);
@@ -473,17 +478,13 @@
     // 获取在线人数
     async function loadOnlineNum() {
       try {
-        // 使用代理获取在线人数 [citation:10]
         const apiUrl = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId=${config.roomId}&page=1&pageSize=1&ruid=${config.mid}`;
         const response = await fetch(`${proxyUrl}${encodeURIComponent(apiUrl)}`);
-
         const data = await response.json();
 
         if (data.code === 0) {
           const onlineNum = data.data.onlineNum;
           const onlineNumText = data.data.onlineNumText;
-
-          // 显示格式：onlineNumText (onlineNum)
           onlineCountEl.textContent = `${onlineNumText}人（${onlineNum}）`;
         } else {
           onlineCountEl.textContent = "获取失败";
@@ -496,27 +497,21 @@
 
     // 调整刷新频率
     function adjustRefreshRate() {
-      // 如果正在直播，设置为2秒刷新一次，否则5秒
       refreshInterval = (liveStatus === 1) ? 2000 : 5000;
-
-      // 清除现有定时器
       clearInterval(window.danmuTimer);
-
-      // 设置新的定时器
       window.danmuTimer = setInterval(updateDanmuAndOnline, refreshInterval);
     }
 
     // 获取弹幕
     async function loadDanmu() {
       try {
-        // 使用代理获取弹幕 [citation:10]
         const apiUrl = `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid=${config.roomId}`;
         const response = await fetch(`${proxyUrl}${encodeURIComponent(apiUrl)}`);
         const data = await response.json();
 
         if (data.code === 0) {
           const danmus = data.data.room || [];
-          displayDanmus(danmus.slice(0, 8)); // 显示最近8条弹幕
+          displayDanmus(danmus.slice(0, 8));
         }
       } catch (error) {
         console.error("获取弹幕失败:", error);
@@ -537,13 +532,11 @@
       danmus.forEach(danmu => {
         const li = document.createElement("li");
         li.className = "danmu-item";
-
         li.innerHTML = `
-                    <img class="user-avatar" src="${danmu.avatar}" alt="用户头像" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0xNSAxN0MxNy4yMDkxIDE3IDE5IDE1LjIwOTEgMTkgMTNDMTkgMTAuNzkwOSAxNy4yMDkxIDkgMTUgOUMxMi43OTA5IDkgMTEgMTAuNzkwOSAxMSAxM0MxMSAxNS4yMDkxIDEyLjc5MDkgMTcgMTUgMTdaTTE1IDE5QzExLjEzIDE5IDcgMjAuMzQgNyAyNFYyNUgyM1YyNEMyMyAyMC4zNCAxOC44NyAxOSAxNSAxOVoiIGZpbGw9IiM5OTk5OTkiLz4KPC9zdmc+'">
-                    <span class="user-name">${danmu.nickname}</span>
-                    <span class="danmu-text">${danmu.text}</span>
-                `;
-
+          <img class="user-avatar" src="${danmu.avatar}" alt="用户头像" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAzMCAzMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMwIiBoZWlnaHQ9IjMwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0xNSAxN0MxNy4yMDkxIDE3IDE5IDE1LjIwOTEgMTkgMTNDMTkgMTAuNzkwOSAxNy4yMDkxIDkgMTUgOUMxMi43OTA5IDkgMTEgMTAuNzkwOSAxMSAxM0MxMSAxNS4yMDkxIDEyLjc5MDkgMTcgMTUgMTdaTTE1IDE5QzExLjEzIDE5IDcgMjAuMzQgNyAyNFYyNUgyM1YyNEMyMyAyMC4zNCAxOC44NyAxOSAxNSAxOVoiIGZpbGw9IiM5OTk5OTkiLz4KPC9zdmc+'">
+          <span class="user-name">${danmu.nickname}</span>
+          <span class="danmu-text">${danmu.text}</span>
+        `;
         danmuListEl.appendChild(li);
       });
     }
@@ -575,8 +568,7 @@
       const countdownEnd = reservationData ? reservationData.time : 0;
       const timeSinceCountdownEnd = now - countdownEnd;
 
-      // 根据直播状态和倒计时情况显示不同状态
-      if (liveStatus === 1) { // 直播中
+      if (liveStatus === 1) {
         statusBadgeEl.textContent = "直播中";
         statusBadgeEl.className = "status-badge status-live";
 
@@ -587,7 +579,7 @@
         } else {
           statusBadgeEl.textContent += " (直播中)";
         }
-      } else { // 未直播
+      } else {
         if (countdownEnd > now) {
           statusBadgeEl.textContent = "未到开播时间";
           statusBadgeEl.className = "status-badge status-countdown";
